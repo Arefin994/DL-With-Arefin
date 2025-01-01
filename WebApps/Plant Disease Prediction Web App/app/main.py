@@ -1,6 +1,6 @@
 import os
 import json
-from PIL import Image  
+from PIL import Image
 import numpy as np
 import tensorflow as tf
 import streamlit as st
@@ -22,9 +22,10 @@ if not os.path.exists(class_indices_path):
 # Load the pre-trained model
 model = tf.keras.models.load_model(model_path)
 
-# Load the class names
+# Load the class names and convert keys to integers
 with open(class_indices_path, "r") as f:
     class_indices = json.load(f)
+class_indices = {int(k): v for k, v in class_indices.items()}  # Ensure integer keys
 
 # Function to load and preprocess the image
 def load_and_preprocess_image(uploaded_img, target_size=(224, 224)):
@@ -41,8 +42,10 @@ def load_and_preprocess_image(uploaded_img, target_size=(224, 224)):
 def predict_image_class(model, image, class_indices):
     predictions = model.predict(image)
     predicted_class_idx = np.argmax(predictions, axis=1)[0]
-    class_names = {v: k for k, v in class_indices.items()}  # Reverse the mapping
-    return class_names[predicted_class_idx]
+    st.write(f"Predicted class index: {predicted_class_idx}")  # Debugging
+    if predicted_class_idx not in class_indices:
+        raise ValueError(f"Predicted index {predicted_class_idx} not found in class indices.")
+    return class_indices[predicted_class_idx]
 
 # Streamlit App
 st.title("Plant Disease Classifier / Prediction")
@@ -54,14 +57,19 @@ if uploaded_img is not None:
     col1, col2 = st.columns(2)
 
     with col1:
-        resized_img = img.resize((150, 150))  
-        st.image(resized_img, caption="Uploaded Image", use_column_width=True)
+        resized_img = img.resize((150, 150))
+        st.image(resized_img, caption="Uploaded Image", use_container_width=True)
 
     with col2:
         if st.button("Classify"):
             try:
                 # Preprocess the image
                 preprocessed_image = load_and_preprocess_image(uploaded_img)
+                st.write(f"Preprocessed image shape: {preprocessed_image.shape}")
+
+                # Debug: Display class indices
+                # st.write(f"Class indices: {class_indices}")
+
                 # Make prediction
                 prediction = predict_image_class(model, preprocessed_image, class_indices)
                 st.success(f"Prediction: {str(prediction)}")
